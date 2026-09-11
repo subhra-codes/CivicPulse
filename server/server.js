@@ -56,48 +56,63 @@ Be realistic and conservative. Do not invent facts that are not supported
 by the report.
 `;
 
-const response = await ai.models.generateContent({
-  model: "gemini-3.5-flash",
-  contents: prompt,
-  config: {
-    responseMimeType: "application/json",
-    responseSchema: {
-      type: "object",
-      properties: {
-        detectedIssue: {
-          type: "string",
-        },
-        category: {
-          type: "string",
-        },
-        severity: {
-          type: "integer",
-        },
-        environmentalRisk: {
-          type: "integer",
-        },
-        healthRisk: {
-          type: "integer",
-        },
-        communityImpact: {
-          type: "integer",
-        },
-        recommendation: {
-          type: "string",
+const models = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+];
+
+let response;
+let lastError;
+
+for (const model of models) {
+  try {
+    console.log(`Trying Gemini model: ${model}`);
+
+    response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            detectedIssue: { type: "string" },
+            category: { type: "string" },
+            severity: { type: "integer" },
+            environmentalRisk: { type: "integer" },
+            healthRisk: { type: "integer" },
+            communityImpact: { type: "integer" },
+            recommendation: { type: "string" },
+          },
+          required: [
+            "detectedIssue",
+            "category",
+            "severity",
+            "environmentalRisk",
+            "healthRisk",
+            "communityImpact",
+            "recommendation",
+          ],
         },
       },
-      required: [
-        "detectedIssue",
-        "category",
-        "severity",
-        "environmentalRisk",
-        "healthRisk",
-        "communityImpact",
-        "recommendation",
-      ],
-    },
-  },
- });
+    });
+
+    console.log(`Gemini model succeeded: ${model}`);
+    break;
+  } catch (error) {
+    lastError = error;
+    console.error(`Gemini model failed: ${model}`, error);
+
+    if (error?.status !== 503) {
+      throw error;
+    }
+  }
+}
+
+if (!response) {
+  throw lastError || new Error("All Gemini models failed.");
+}
 
  const analysis = JSON.parse(response.text);
 
